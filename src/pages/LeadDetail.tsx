@@ -7,15 +7,20 @@ import type {
   ActivityOutcome,
   Business,
   Contact,
+  EventType,
   PipelineStatus,
 } from '../lib/types'
 import {
+  EVENT_TYPES,
+  EVENT_TYPE_LABELS,
   OUTCOME_LABELS,
   OUTCOME_OPTIONS,
   PIPELINE_STATUSES,
   PIPELINE_STATUS_LABELS,
   WEBSITE_TIER_LABELS,
 } from '../lib/constants'
+import ContactsSection from '../components/ContactsSection'
+import OpportunitiesSection from '../components/OpportunitiesSection'
 
 const LEAD_QUEUE_KEY = 'leadQueue'
 
@@ -35,7 +40,8 @@ export default function LeadDetail() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [outcome, setOutcome] = useState<ActivityOutcome>('no_answer')
+  const [eventType, setEventType] = useState<EventType>('call')
+  const [outcome, setOutcome] = useState<ActivityOutcome | ''>('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -61,7 +67,8 @@ export default function LeadDetail() {
     setBusiness((b.data as Business) ?? null)
     setContacts((c.data as Contact[]) ?? [])
     setActivities((a.data as Activity[]) ?? [])
-    setOutcome('no_answer')
+    setEventType('call')
+    setOutcome('')
     setNotes('')
     setLoading(false)
   }, [id])
@@ -83,16 +90,20 @@ export default function LeadDetail() {
     else navigate('/')
   }, [id, navigate])
 
+  // A call event REQUIRES a disposition; meeting/demo events do not.
+  const canLog = eventType !== 'call' || outcome !== ''
+
   const logAndNext = useCallback(async () => {
-    if (!id || !email || saving) return
+    if (!id || !email || saving || !canLog) return
     setSaving(true)
     await supabase.from('activities').insert({
       business_id: id,
       logged_by: email,
-      outcome,
+      event_type: eventType,
+      outcome: eventType === 'call' ? (outcome as ActivityOutcome) : null,
       notes: notes.trim() || null,
     })
-    // Reduce clicks: first logged activity moves a "new" lead to "contacted".
+    // First logged event moves a "new" account to "contacted".
     if (business?.pipeline_status === 'new') {
       await supabase
         .from('businesses')
@@ -101,16 +112,15 @@ export default function LeadDetail() {
     }
     setSaving(false)
     goToNext()
-  }, [id, email, saving, outcome, notes, business?.pipeline_status, goToNext])
+  }, [id, email, saving, canLog, eventType, outcome, notes, business?.pipeline_status, goToNext])
 
   const triggerCall = useCallback(() => {
     callRef.current?.click()
   }, [])
 
-  // Keyboard shortcuts: c = call, 1-7 = outcome, Enter = log & next.
+  // Keyboard: c = call, 1-6 = disposition, Enter = log & next.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // Enter (without Shift) always submits, even from the notes textarea.
       if (e.key === 'Enter' && !e.shiftKey) {
         const inNotes = e.target === notesRef.current
         const inField = isEditableTarget(e.target)
@@ -120,7 +130,6 @@ export default function LeadDetail() {
         }
         return
       }
-      // Other shortcuts are ignored while typing in a field.
       if (isEditableTarget(e.target) || e.target === notesRef.current) return
       if (e.key.toLowerCase() === 'c') {
         e.preventDefault()
@@ -138,7 +147,7 @@ export default function LeadDetail() {
   }, [logAndNext, triggerCall])
 
   if (loading) return <p className="muted">Loading…</p>
-  if (!business) return <p className="muted">Lead not found.</p>
+  if (!business) return <p className="muted">Account not found.</p>
 
   return (
     <div className="detail">
@@ -147,7 +156,7 @@ export default function LeadDetail() {
       </button>
 
       <div className="detail__grid">
-        {/* ---- Left: business info + call/log flow ---- */}
+        {/* ---- Left: account info + event log ---- */}
         <div>
           <div className="card">
             <div className="page-head">
@@ -206,24 +215,46 @@ export default function LeadDetail() {
             )}
           </div>
 
-          {/* ---- Log & Next ---- */}
+          {/* ---- Log event ---- */}
           <div className="card">
-            <h2>Log call</h2>
+            <h2>Log event</h2>
             <div className="field">
-              <label>Outcome</label>
-              <select
-                value={outcome}
-                onChange={(e) => setOutcome(e.target.value as ActivityOutcome)}
-              >
-                {OUTCOME_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label} ({o.key})
-                  </option>
+              <label>Event type</label>
+              <div className="event-types">
+                {EVENT_TYPES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    className={`btn${eventType === t.value ? ' btn--active' : ''}`}
+                    onClick={() => setEventType(t.value)}
+                  >
+                    {t.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
+
+            {eventType === 'call' && (
+              <div className="field">
+                <label>Disposition (required)</label>
+                <select
+                  value={outcome}
+                  onChange={(e) =>
+                    setOutcome(e.target.value as ActivityOutcome | '')
+                  }
+                >
+                  <option value="">— choose disposition —</option>
+                  {OUTCOME_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label} ({o.key})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="field">
-              <label>Notes</label>
+              <label>Notes (optional)</label>
               <textarea
                 ref={notesRef}
                 rows={3}
@@ -235,10 +266,13 @@ export default function LeadDetail() {
             <button
               className="btn btn--primary"
               onClick={logAndNext}
-              disabled={saving}
+              disabled={saving || !canLog}
             >
               {saving ? 'Saving…' : 'Log & Next →'}
             </button>
+            {eventType === 'call' && !canLog && (
+              <p className="muted small">Pick a disposition to log this call.</p>
+            )}
 
             <div className="legend">
               <strong>Shortcuts:</strong> <kbd>C</kbd> call · <kbd>Enter</kbd>{' '}
@@ -254,13 +288,15 @@ export default function LeadDetail() {
           <PipelineControl business={business} onChange={load} />
         </div>
 
-        {/* ---- Right: contacts + activity history ---- */}
+        {/* ---- Right: contacts, opportunities, event history ---- */}
         <div>
           <ContactsSection
             businessId={business.id}
             contacts={contacts}
             onChange={load}
           />
+
+          <OpportunitiesSection businessId={business.id} contacts={contacts} />
 
           <div className="card">
             <h2>Activity history</h2>
@@ -271,8 +307,15 @@ export default function LeadDetail() {
                 {activities.map((a) => (
                   <li key={a.id}>
                     <div className="activity-log__head">
-                      <span className={`outcome outcome--${a.outcome}`}>
-                        {OUTCOME_LABELS[a.outcome]}
+                      <span>
+                        <span className={`event event--${a.event_type}`}>
+                          {EVENT_TYPE_LABELS[a.event_type]}
+                        </span>
+                        {a.outcome && (
+                          <span className={`outcome outcome--${a.outcome}`}>
+                            {OUTCOME_LABELS[a.outcome]}
+                          </span>
+                        )}
                       </span>
                       <span className="muted small">
                         {new Date(a.created_at).toLocaleString()} · {a.logged_by}
@@ -359,112 +402,6 @@ function PipelineControl({
       >
         {saving ? 'Saving…' : 'Update status'}
       </button>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-
-const EMPTY_CONTACT = { name: '', role: '', phone: '', email: '', notes: '' }
-
-function ContactsSection({
-  businessId,
-  contacts,
-  onChange,
-}: {
-  businessId: string
-  contacts: Contact[]
-  onChange: () => void
-}) {
-  const [form, setForm] = useState(EMPTY_CONTACT)
-  const [open, setOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.name && !form.phone && !form.email) return
-    setSaving(true)
-    await supabase.from('contacts').insert({
-      business_id: businessId,
-      name: form.name || null,
-      role: form.role || null,
-      phone: form.phone || null,
-      email: form.email || null,
-      notes: form.notes || null,
-      source: 'manual',
-    })
-    setSaving(false)
-    setForm(EMPTY_CONTACT)
-    setOpen(false)
-    onChange()
-  }
-
-  return (
-    <div className="card">
-      <div className="page-head">
-        <h2>Contacts</h2>
-        <button className="link-btn" onClick={() => setOpen((o) => !o)}>
-          {open ? 'Cancel' : '+ Add contact'}
-        </button>
-      </div>
-
-      {open && (
-        <form className="contact-form" onSubmit={add}>
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <input
-            placeholder="Role"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          />
-          <input
-            placeholder="Phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <input
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            placeholder="Notes"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
-          <button className="btn" type="submit" disabled={saving}>
-            {saving ? 'Saving…' : 'Save contact'}
-          </button>
-        </form>
-      )}
-
-      {contacts.length === 0 ? (
-        <p className="muted">No contacts yet.</p>
-      ) : (
-        <ul className="contact-list">
-          {contacts.map((c) => (
-            <li key={c.id}>
-              <div>
-                <strong>{c.name ?? '(no name)'}</strong>
-                {c.role && <span className="muted"> · {c.role}</span>}
-                <span className={`source source--${c.source}`}>{c.source}</span>
-              </div>
-              <div className="muted small">
-                {c.phone && (
-                  <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>{c.phone}</a>
-                )}
-                {c.phone && c.email && ' · '}
-                {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
-              </div>
-              {c.notes && <div className="small">{c.notes}</div>}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   )
 }

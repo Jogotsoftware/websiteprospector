@@ -9,7 +9,6 @@ import {
   type LatLng,
 } from './_lib/places.js'
 import { classifyWebsite, isLead } from './_lib/classify.js'
-import { enrichBusiness } from './_lib/zoominfo.js'
 
 const LIMIT_MESSAGE = 'Monthly API limit reached — resets next month.'
 
@@ -161,24 +160,6 @@ export const handler: Handler = async (event) => {
 
       if (isLead(tier)) {
         newLeads++
-        // ZoomInfo enrichment (non-blocking, leads only).
-        const enrichment = await enrichBusiness({
-          name: details.name,
-          address: details.address,
-        })
-        const rows = enrichment.contacts
-          .filter((c) => c.name || c.email || c.phone)
-          .map((c) => ({
-            business_id: inserted.id,
-            name: c.name,
-            role: c.role,
-            phone: c.phone,
-            email: c.email,
-            source: 'zoominfo' as const,
-          }))
-        if (rows.length > 0) {
-          await admin.from('contacts').insert(rows)
-        }
       } else {
         newRealSites++
       }

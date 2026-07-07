@@ -31,12 +31,18 @@ create type contact_source as enum (
 
 create type activity_outcome as enum (
   'no_answer',
-  'not_interested',
-  'interested',
-  'callback_requested',
   'left_voicemail',
-  'wrong_number',
-  'disqualified'
+  'contact',
+  'correct_contact',
+  'not_interested',
+  'bad_data'
+);
+
+-- An activity is an "event": a call, a meeting, or a demo.
+create type event_type as enum (
+  'call',
+  'meeting',
+  'demo'
 );
 
 create type api_call_type as enum (
@@ -103,11 +109,15 @@ create index contacts_business_idx on contacts (business_id);
 
 -- activities ------------------------------------------------------------------
 
+-- Running log of events on an account (calls, meetings, demos). A call event
+-- carries a disposition (outcome); meeting/demo events may leave it null.
+-- Notes are always optional.
 create table activities (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references businesses (id) on delete cascade,
   logged_by text not null,                  -- email of the user who logged it
-  outcome activity_outcome not null,
+  event_type event_type not null default 'call',
+  outcome activity_outcome,                 -- required for calls (enforced in app)
   notes text,
   created_at timestamptz not null default now()
 );
