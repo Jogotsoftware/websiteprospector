@@ -30,3 +30,16 @@ export async function reserveApiCall(callType: ApiCallType): Promise<Reservation
   const row = Array.isArray(data) ? data[0] : data
   return { allowed: !!row?.allowed, newCount: row?.new_count ?? 0 }
 }
+
+/**
+ * Give back a previously-reserved slot when the Google call did not actually
+ * succeed (e.g. a 4xx/5xx error — Google does not bill for those). Keeps the
+ * monthly counter aligned with real billable usage so failed attempts don't
+ * burn the cap. Never drops below zero.
+ */
+export async function refundApiCall(callType: ApiCallType): Promise<void> {
+  const admin = getAdminClient()
+  // Month is derived server-side (same as reserve_api_call) to avoid any
+  // client/DB month-boundary mismatch.
+  await admin.rpc('refund_api_call', { p_call_type: callType })
+}

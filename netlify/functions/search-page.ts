@@ -1,7 +1,7 @@
 import type { Handler } from '@netlify/functions'
 import { requireAllowedUser } from './_lib/auth.js'
 import { getAdminClient } from './_lib/supabaseAdmin.js'
-import { reserveApiCall } from './_lib/budget.js'
+import { reserveApiCall, refundApiCall } from './_lib/budget.js'
 import {
   geocodeCity,
   textSearchPage,
@@ -94,12 +94,21 @@ export const handler: Handler = async (event) => {
     }
     textSearchCalls++
 
-    const page = await textSearchPage({
-      query,
-      center,
-      radiusMeters,
-      pageToken: payload.pageToken ?? null,
-    })
+    let page
+    try {
+      page = await textSearchPage({
+        query,
+        center,
+        radiusMeters,
+        pageToken: payload.pageToken ?? null,
+      })
+    } catch (err) {
+      // Google rejected the request (e.g. 403 / quota): no billable call
+      // happened, so give the reserved slot back before surfacing the error.
+      await refundApiCall('text_search')
+      textSearchCalls--
+      throw err
+    }
 
     // --- Dedupe: drop place_ids we already have ----------------------------
     let newPlaceIds = page.placeIds
@@ -122,7 +131,16 @@ export const handler: Handler = async (event) => {
       }
       detailsCalls++
 
-      const details = await placeDetails(placeId)
+      let details
+      try {
+        details = await placeDetails(placeId)
+      } catch (err) {
+        // Refund the reserved slot on a failed (non-billable) call, then stop
+        // the run so a systemic error (e.g. 403) doesn't spin through places.
+        await refundApiCall('place_details')
+        detailsCalls--
+        throw err
+      }
       const tier = classifyWebsite(details.websiteUri)
 
       // Optional min-review gate at ingest time (still stored either way? No:
