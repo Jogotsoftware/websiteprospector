@@ -70,6 +70,11 @@ gap).
 
 ## Setup
 
+### Fast path
+
+See **[DEPLOY.md](DEPLOY.md)** for the 5-minute provisioning checklist —
+`supabase/setup.sql` is all six migrations in one paste-ready file.
+
 ### 1. Create a dedicated Supabase project
 
 Run the migrations in order (SQL editor or `supabase db push`):
