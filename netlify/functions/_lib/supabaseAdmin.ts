@@ -8,10 +8,16 @@ let cached: SupabaseClient | null = null
  */
 export function getAdminClient(): SupabaseClient {
   if (cached) return cached
-  const url = process.env.SUPABASE_URL
+  // Accept the plain SUPABASE_URL or the VITE_-prefixed one the Supabase
+  // Netlify extension provisions (functions can read either at runtime).
+  // NOTE: SUPABASE_DATABASE_URL is a Postgres connection string, not the API
+  // URL, so it is deliberately not used here.
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars')
+    throw new Error(
+      'Missing SUPABASE_URL (or VITE_SUPABASE_URL) / SUPABASE_SERVICE_ROLE_KEY env vars',
+    )
   }
   cached = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
