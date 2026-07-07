@@ -1,24 +1,20 @@
 # Deploy checklist
 
-Everything in code is done. What remains is provisioning the two services and
-pasting keys. ~5–10 minutes total.
+## 1. Supabase — ✅ DONE (provisioned 2026-07-07)
 
-## 1. Supabase (~3 min)
+Live project: **`lead-prospector`** (`cynvtkzrywainxesiinh`, us-east-1) in the
+Revenue Instruments org. All 7 migrations applied, allowlist seeded with the
+two authorized emails, security advisor clean.
 
-1. [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**
-   (dedicated to this tool). Pick any strong DB password; you won't need it
-   day-to-day.
-2. Open the **SQL Editor** → paste the entire contents of
-   [`supabase/setup.sql`](supabase/setup.sql) → **Run**. (It's all six
-   migrations concatenated, in order.)
-3. Still in the SQL editor, seed the allowlist — run the insert at the bottom
-   of `setup.sql` with the two real authorized email addresses. **Nobody can
-   sign in until this runs.**
-4. **Project Settings → API**: copy the **Project URL**, **anon public** key,
-   and **service_role** key for step 2 below.
-5. **Authentication → URL Configuration**: after step 2 gives you a Netlify
-   domain, set **Site URL** to `https://<your-site>.netlify.app` (magic-link
-   redirect target).
+- Project URL: `https://cynvtkzrywainxesiinh.supabase.co`
+- Dashboard: <https://supabase.com/dashboard/project/cynvtkzrywainxesiinh>
+
+Still to do in Supabase (after Netlify gives you a domain):
+**Authentication → URL Configuration → Site URL** =
+`https://<your-site>.netlify.app` (magic-link redirect target).
+
+(To rebuild from scratch ever: `supabase/setup.sql` + the allowlist seed at the
+bottom of that file.)
 
 ## 2. Netlify (~3 min)
 
@@ -32,10 +28,10 @@ pasting keys. ~5–10 minutes total.
 
    | Key | Value |
    |---|---|
-   | `VITE_SUPABASE_URL` | Project URL from Supabase |
-   | `VITE_SUPABASE_ANON_KEY` | anon public key |
-   | `SUPABASE_URL` | same Project URL |
-   | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (keep secret) |
+   | `VITE_SUPABASE_URL` | `https://cynvtkzrywainxesiinh.supabase.co` |
+   | `VITE_SUPABASE_ANON_KEY` | anon public key (Dashboard → Settings → API keys) |
+   | `SUPABASE_URL` | `https://cynvtkzrywainxesiinh.supabase.co` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (same page — keep secret) |
    | `GOOGLE_PLACES_API_KEY` | your Google key (see below) |
    | `MONTHLY_API_CAP` | `4500` (optional — this is the default) |
 
