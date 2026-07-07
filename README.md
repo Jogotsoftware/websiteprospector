@@ -172,8 +172,9 @@ while typing in a text field.
 
 ## Decisions made (were left open, or reasonable calls)
 
-- **Auth: magic link.** No passwords for two users; the allowlist trigger
-  permits the account on first sign-in.
+- **Auth: email + password.** Two fixed users, pre-provisioned in Supabase
+  (email pre-confirmed). The `allowed_emails` allowlist + signup trigger + RLS
+  still gate all access; there is no public signup.
 - **React + Vite + TypeScript**, plain CSS.
 - **Sort/filter/edit run client-side** over the fetched account set — uniform
   across built-in and custom fields; fine at two-person scale.

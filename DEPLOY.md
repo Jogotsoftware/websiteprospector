@@ -9,9 +9,9 @@ two authorized emails, security advisor clean.
 - Project URL: `https://cynvtkzrywainxesiinh.supabase.co`
 - Dashboard: <https://supabase.com/dashboard/project/cynvtkzrywainxesiinh>
 
-Still to do in Supabase (after Netlify gives you a domain):
-**Authentication → URL Configuration → Site URL** =
-`https://<your-site>.netlify.app` (magic-link redirect target).
+Both users are pre-created with email/password sign-in (email pre-confirmed),
+so there's nothing left to do in Supabase Auth. Sign in with either allowlisted
+email and the shared password.
 
 (To rebuild from scratch ever: `supabase/setup.sql` + the allowlist seed at the
 bottom of that file.)
@@ -45,9 +45,8 @@ enabled on its project. Restrict the key to those two APIs.
 
 ## 4. Smoke test
 
-1. Open the Netlify URL → enter one of the two allowlisted emails → magic link
-   arrives → sign in. (Any other email is rejected at signup by the DB
-   trigger.)
+1. Open the Netlify URL → sign in with one of the two allowlisted emails and
+   the shared password. (Both users are pre-created and email-confirmed.)
 2. Run Search → small test (one category, small radius) → watch the API badge
    count up and leads appear.
 3. Open a lead → `C` to call → log a disposition → Enter.

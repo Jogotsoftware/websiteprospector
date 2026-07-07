@@ -14,7 +14,10 @@ interface AuthState {
   loading: boolean
   /** True once we've confirmed the signed-in email is on the allowlist. */
   allowed: boolean
-  signInWithMagicLink: (email: string) => Promise<{ error: string | null }>
+  signInWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -70,10 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: session?.user?.email ?? null,
     loading,
     allowed,
-    async signInWithMagicLink(email: string) {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: window.location.origin },
+    async signInWithPassword(email: string, password: string) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       })
       return { error: error?.message ?? null }
     },

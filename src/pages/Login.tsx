@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { signInWithMagicLink, session, allowed } = useAuth()
+  const { signInWithPassword, session, allowed } = useAuth()
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -15,10 +15,9 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error } = await signInWithMagicLink(email.trim())
+    const { error } = await signInWithPassword(email, password)
     setBusy(false)
     if (error) setError(error)
-    else setSent(true)
   }
 
   return (
@@ -28,33 +27,35 @@ export default function Login() {
         <p className="muted">Internal tool — authorized users only.</p>
 
         {rejected && (
-          <p className="error">
-            This account isn’t authorized for this tool.
-          </p>
+          <p className="error">This account isn’t authorized for this tool.</p>
         )}
 
-        {sent ? (
-          <p>
-            Check <strong>{email}</strong> for a sign-in link.
-          </p>
-        ) : (
-          <form onSubmit={submit}>
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-            {error && <p className="error">{error}</p>}
-            <button type="submit" disabled={busy || !email}>
-              {busy ? 'Sending…' : 'Send magic link'}
-            </button>
-          </form>
-        )}
+        <form onSubmit={submit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+          />
+          {error && <p className="error">{error}</p>}
+          <button type="submit" disabled={busy || !email || !password}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   )
